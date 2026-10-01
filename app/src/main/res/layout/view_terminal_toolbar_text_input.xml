@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    The left/right padding is the same value as ExtraKeysView.BUTTON_EDGE_MARGIN_DP, but written
+    separately on purpose so that the two toolbar pages can be inset differently if that is wanted
+    later. A comment cannot sit between the attributes of an element, so it lives here instead.
+-->
 <EditText xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/terminal_toolbar_text_input"
@@ -13,8 +18,6 @@
     android:paddingTop="0dp"
     android:textCursorDrawable="@null"
     android:paddingBottom="0dp"
-    <!-- Same value as ExtraKeysView.BUTTON_EDGE_MARGIN_DP, but written separately on purpose so
-         that the two toolbar pages can be inset differently if that is wanted later. -->
     android:paddingLeft="4dp"
     android:paddingRight="4dp"
     tools:ignore="LabelFor" />
