@@ -411,6 +411,11 @@ public final class ExtraKeysView extends GridLayout {
      * @param rippleColor The color overlaid while pressed as a 0xAARRGGBB int.
      */
     private void applyButtonBackground(MaterialButton button, int contentColor, int rippleColor) {
+        // Has to be cleared before the background is replaced. Once the background is overwritten,
+        // MaterialButton hands the tint of its style over to AppCompatButton, and the view then
+        // tints the new drawable with it. For a text button that tint is transparent, so it would
+        // erase both the fill and the ripple of the drawable set here.
+        button.setBackgroundTintList(null);
         button.setBackground(createButtonBackground(contentColor, rippleColor));
     }
 
