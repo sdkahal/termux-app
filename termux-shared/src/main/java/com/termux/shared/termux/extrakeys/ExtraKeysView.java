@@ -2,6 +2,11 @@ package com.termux.shared.termux.extrakeys;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.res.ColorStateList;
+import android.graphics.Color;
+import android.graphics.drawable.Drawable;
+import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.RippleDrawable;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
@@ -35,6 +40,7 @@ import com.google.android.material.button.MaterialButton;
 import com.termux.shared.R;
 import com.termux.shared.termux.terminal.io.TerminalExtraKeys;
 import com.termux.shared.theme.ThemeUtils;
+import com.termux.shared.view.ViewUtils;
 
 /**
  * A {@link View} showing extra keys (such as Escape, Ctrl, Alt) not normally available on an Android soft
@@ -126,6 +132,17 @@ public final class ExtraKeysView extends GridLayout {
     public static final int DEFAULT_BUTTON_BACKGROUND_COLOR = 0x00000000;
     /** Defines the default fallback value for {@link #mButtonActiveBackgroundColor} if {@link #ATTR_BUTTON_ACTIVE_BACKGROUND_COLOR} is undefined. */
     public static final int DEFAULT_BUTTON_ACTIVE_BACKGROUND_COLOR = 0xFF7F7F7F;
+    /** Defines the default color overlaid on an extra keys button while it is pressed. */
+    public static final int DEFAULT_BUTTON_HIGHLIGHT_COLOR = 0x33FFFFFF;
+    /** Defines the default corner radius of an extra keys button in pixels. */
+    public static final int DEFAULT_BUTTON_CORNER_RADIUS = 0;
+
+    /** The gap between two neighbouring extra keys, in dp. */
+    public static final int BUTTON_MARGIN_DP = 2;
+    /** The gap between the outermost extra keys and the edge of the toolbar, in dp. */
+    public static final int BUTTON_EDGE_MARGIN_DP = 4;
+    /** The gap between the long press popup and the key it was opened from, in dp. */
+    public static final int POPUP_MARGIN_DP = 8;
 
 
 
@@ -176,6 +193,12 @@ public final class ExtraKeysView extends GridLayout {
     /** The background color for the extra keys button when its active. Defaults to
      * {@link #DEFAULT_BUTTON_ACTIVE_BACKGROUND_COLOR}. */
     protected int mButtonActiveBackgroundColor;
+    /** The color overlaid on an extra keys button while it is pressed. Defaults to
+     * {@link #DEFAULT_BUTTON_HIGHLIGHT_COLOR}. */
+    protected int mButtonHighlightColor;
+    /** The corner radius of an extra keys button in pixels. Defaults to
+     * {@link #DEFAULT_BUTTON_CORNER_RADIUS}. */
+    protected int mButtonCornerRadius;
 
     /** Defines whether text for the extra keys button should be all capitalized automatically. */
     protected boolean mButtonTextAllCaps = true;
@@ -214,6 +237,9 @@ public final class ExtraKeysView extends GridLayout {
 
         setRepetitiveKeys(ExtraKeysConstants.PRIMARY_REPETITIVE_KEYS);
         setSpecialButtons(getDefaultSpecialButtons(this));
+
+        setButtonHighlightColor(DEFAULT_BUTTON_HIGHLIGHT_COLOR);
+        setButtonCornerRadius(DEFAULT_BUTTON_CORNER_RADIUS);
 
         setButtonColors(
             ThemeUtils.getSystemAttrColor(context, ATTR_BUTTON_TEXT_COLOR, DEFAULT_BUTTON_TEXT_COLOR),
@@ -281,6 +307,8 @@ public final class ExtraKeysView extends GridLayout {
         mButtonActiveTextColor = buttonActiveTextColor;
         mButtonBackgroundColor = buttonBackgroundColor;
         mButtonActiveBackgroundColor = buttonActiveBackgroundColor;
+
+        refreshButtonColors();
     }
 
 
@@ -325,6 +353,104 @@ public final class ExtraKeysView extends GridLayout {
     /** Set {@link #mButtonActiveBackgroundColor}. */
     public void setButtonActiveBackgroundColor(int buttonActiveBackgroundColor) {
         mButtonActiveBackgroundColor = buttonActiveBackgroundColor;
+    }
+
+
+    /** Get {@link #mButtonHighlightColor}. */
+    public int getButtonHighlightColor() {
+        return mButtonHighlightColor;
+    }
+
+    /** Set {@link #mButtonHighlightColor}. */
+    public void setButtonHighlightColor(int buttonHighlightColor) {
+        mButtonHighlightColor = buttonHighlightColor;
+
+        refreshButtonColors();
+    }
+
+
+    /** Get {@link #mButtonCornerRadius}. */
+    public int getButtonCornerRadius() {
+        return mButtonCornerRadius;
+    }
+
+    /**
+     * Set {@link #mButtonCornerRadius}. Callers that want the key to follow the surrounding
+     * terminal toolbar should pass the toolbar corner radius reduced by
+     * {@link #BUTTON_EDGE_MARGIN_DP}.
+     *
+     * @param buttonCornerRadius The corner radius in pixels, clamped to zero.
+     */
+    public void setButtonCornerRadius(int buttonCornerRadius) {
+        mButtonCornerRadius = Math.max(0, buttonCornerRadius);
+
+        refreshButtonColors();
+    }
+
+
+    /**
+     * Create the background of an extra keys button.
+     *
+     * The button style brings its own shape drawable, and {@link MaterialButton#setBackgroundColor(int)}
+     * only tints it, so pressing a key tints the whole button and leaves it tinted once the touch
+     * ends. The background is therefore built here instead, using {@link #mButtonCornerRadius} so
+     * that the keys follow the corner radius of the surrounding terminal toolbar. Once the
+     * background is replaced, {@link MaterialButton} stops managing it, so the style colors and
+     * tints no longer apply to it.
+     *
+     * @param contentColor The resting fill color of the button as a 0xAARRGGBB int.
+     * @param rippleColor The color overlaid while pressed as a 0xAARRGGBB int.
+     * @return Returns the drawable to use as the background of the button.
+     */
+    private Drawable createButtonBackground(int contentColor, int rippleColor) {
+        GradientDrawable content = new GradientDrawable();
+        content.setShape(GradientDrawable.RECTANGLE);
+        content.setColor(contentColor);
+        content.setCornerRadius(mButtonCornerRadius);
+
+        GradientDrawable mask = new GradientDrawable();
+        mask.setShape(GradientDrawable.RECTANGLE);
+        mask.setCornerRadius(mButtonCornerRadius);
+        // The mask is used through its alpha: only the opaque parts of it let the ripple through,
+        // so it has to be opaque inside the shape or the highlight would be clipped away entirely.
+        mask.setColor(Color.WHITE);
+
+        return new RippleDrawable(ColorStateList.valueOf(rippleColor), content, mask);
+    }
+
+    /**
+     * Re-apply the current button colors to the buttons that have already been created, so that a
+     * color change takes effect without waiting for {@link #reload(ExtraKeysInfo, float)} to run
+     * again.
+     */
+    private void refreshButtonColors() {
+        for (SpecialButtonState state : mSpecialButtons.values()) {
+            for (MaterialButton button : state.buttons) {
+                button.setTextColor(state.isActive ? mButtonActiveTextColor : mButtonTextColor);
+            }
+        }
+
+        for (int i = 0; i < getChildCount(); i++) {
+            View child = getChildAt(i);
+            if (child instanceof MaterialButton)
+                applyButtonBackground((MaterialButton) child, mButtonBackgroundColor, mButtonHighlightColor);
+        }
+    }
+
+    /**
+     * Replace the background of the given button with {@link #createButtonBackground(int, int)}.
+     *
+     * @param button The button to set the background of.
+     * @param contentColor The resting fill color of the button as a 0xAARRGGBB int.
+     * @param rippleColor The color overlaid while pressed as a 0xAARRGGBB int.
+     */
+    private void applyButtonBackground(MaterialButton button, int contentColor, int rippleColor) {
+        // Has to be cleared before the background is replaced. Once the background is overwritten,
+        // MaterialButton hands the tint of its style over to AppCompatButton, and the view then
+        // tints the new drawable with it. For a text button that tint is transparent, so it would
+        // erase both the fill and the ripple of the drawable set here.
+        button.setBackgroundTintList(null);
+        button.setBackground(createButtonBackground(contentColor, rippleColor));
     }
 
     /** Set {@link #mButtonTextAllCaps}. */
@@ -394,6 +520,11 @@ public final class ExtraKeysView extends GridLayout {
 
         ExtraKeyButton[][] buttons = extraKeysInfo.getMatrix();
 
+        // Keys are spaced apart instead of filling the toolbar edge to edge, with a wider gap
+        // towards the toolbar edge so that the toolbar keeps some breathing room.
+        int marginBetween = Math.round(ViewUtils.dpToPx(getContext(), BUTTON_MARGIN_DP));
+        int marginEdge = Math.round(ViewUtils.dpToPx(getContext(), BUTTON_EDGE_MARGIN_DP));
+
         setRowCount(buttons.length);
         setColumnCount(maximumLength(buttons));
 
@@ -413,6 +544,7 @@ public final class ExtraKeysView extends GridLayout {
                 button.setTextColor(mButtonTextColor);
                 button.setAllCaps(mButtonTextAllCaps);
                 button.setPadding(0, 0, 0, 0);
+                applyButtonBackground(button, mButtonBackgroundColor, mButtonHighlightColor);
 
                 button.setOnClickListener(view -> {
                     performExtraKeyButtonHapticFeedback(view, buttonInfo, button);
@@ -422,7 +554,9 @@ public final class ExtraKeysView extends GridLayout {
                 button.setOnTouchListener((view, event) -> {
                     switch (event.getAction()) {
                         case MotionEvent.ACTION_DOWN:
-                            view.setBackgroundColor(mButtonActiveBackgroundColor);
+                            // The pressed highlight is driven by the ripple drawable set above, so
+                            // only the pressed state has to follow the touch here.
+                            view.setPressed(true);
                             // Start long press scheduled executors which will be stopped in next MotionEvent
                             startScheduledExecutors(view, buttonInfo, button);
                             return true;
@@ -432,23 +566,23 @@ public final class ExtraKeysView extends GridLayout {
                                 // Show popup on swipe up
                                 if (mPopupWindow == null && event.getY() < 0) {
                                     stopScheduledExecutors();
-                                    view.setBackgroundColor(mButtonBackgroundColor);
+                                    view.setPressed(false);
                                     showPopup(view, buttonInfo.getPopup());
                                 }
                                 if (mPopupWindow != null && event.getY() > 0) {
-                                    view.setBackgroundColor(mButtonActiveBackgroundColor);
+                                    view.setPressed(true);
                                     dismissPopup();
                                 }
                             }
                             return true;
 
                         case MotionEvent.ACTION_CANCEL:
-                            view.setBackgroundColor(mButtonBackgroundColor);
+                            view.setPressed(false);
                             stopScheduledExecutors();
                             return true;
 
                         case MotionEvent.ACTION_UP:
-                            view.setBackgroundColor(mButtonBackgroundColor);
+                            view.setPressed(false);
                             stopScheduledExecutors();
                             // If ACTION_UP up was not from a repetitive key or was with a key with a popup button
                             if (mLongPressCount == 0 || mPopupWindow != null) {
@@ -476,7 +610,11 @@ public final class ExtraKeysView extends GridLayout {
                 } else {
                     param.height = 0;
                 }
-                param.setMargins(0, 0, 0, 0);
+                param.setMargins(
+                    col == 0 ? marginEdge : marginBetween,
+                    row == 0 ? marginEdge : marginBetween,
+                    col == buttons[row].length - 1 ? marginEdge : marginBetween,
+                    row == buttons.length - 1 ? marginEdge : marginBetween);
                 param.columnSpec = GridLayout.spec(col, GridLayout.FILL, 1.f);
                 param.rowSpec = GridLayout.spec(row, GridLayout.FILL, 1.f);
                 button.setLayoutParams(param);
@@ -606,14 +744,17 @@ public final class ExtraKeysView extends GridLayout {
         button.setMinimumHeight(0);
         button.setWidth(width);
         button.setHeight(height);
-        button.setBackgroundColor(mButtonActiveBackgroundColor);
+        applyButtonBackground(button, mButtonActiveBackgroundColor, mButtonHighlightColor);
         mPopupWindow = new PopupWindow(this);
         mPopupWindow.setWidth(LayoutParams.WRAP_CONTENT);
         mPopupWindow.setHeight(LayoutParams.WRAP_CONTENT);
         mPopupWindow.setContentView(button);
         mPopupWindow.setOutsideTouchable(true);
         mPopupWindow.setFocusable(false);
-        mPopupWindow.showAsDropDown(view, 0, -2 * height);
+        // The popup is dropped one key height above the key plus the margin, so that it does not
+        // touch the key it belongs to.
+        int popupMargin = Math.round(ViewUtils.dpToPx(getContext(), POPUP_MARGIN_DP));
+        mPopupWindow.showAsDropDown(view, 0, -2 * height - popupMargin);
     }
 
     public void dismissPopup() {

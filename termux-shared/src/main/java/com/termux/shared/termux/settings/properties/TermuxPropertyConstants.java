@@ -255,6 +255,24 @@ public final class TermuxPropertyConstants {
 
 
 
+    /**
+     * Defines the key for the corner radius of the terminal toolbar background, as a percentage of
+     * half the toolbar height. So {@code 50} is half the height and {@code 100} always makes the
+     * toolbar a full capsule, no matter how many rows it has or the screen density.
+     */
+    public static final String KEY_TOOLBAR_CORNER_RADIUS =  "toolbar-corner-radius"; // Default: "toolbar-corner-radius"
+    public static final int IVALUE_TOOLBAR_CORNER_RADIUS_MIN = 0;
+    public static final int IVALUE_TOOLBAR_CORNER_RADIUS_MAX = 100;
+    public static final int DEFAULT_IVALUE_TOOLBAR_CORNER_RADIUS = 0;
+
+    /** Defines the key for the opacity of the terminal toolbar background in percent */
+    public static final String KEY_TOOLBAR_OPACITY =  "toolbar-opacity"; // Default: "toolbar-opacity"
+    public static final int IVALUE_TOOLBAR_OPACITY_MIN = 0;
+    public static final int IVALUE_TOOLBAR_OPACITY_MAX = 100;
+    public static final int DEFAULT_IVALUE_TOOLBAR_OPACITY = 100;
+
+
+
 
 
     /* float */
@@ -413,6 +431,8 @@ public final class TermuxPropertyConstants {
         KEY_TERMINAL_MARGIN_HORIZONTAL,
         KEY_TERMINAL_MARGIN_VERTICAL,
         KEY_TERMINAL_TRANSCRIPT_ROWS,
+        KEY_TOOLBAR_CORNER_RADIUS,
+        KEY_TOOLBAR_OPACITY,
 
         /* float */
         KEY_TERMINAL_TOOLBAR_HEIGHT_SCALE_FACTOR,

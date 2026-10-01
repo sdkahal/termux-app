@@ -9,7 +9,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.view.ContextMenu;
@@ -19,6 +21,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
 import android.view.WindowManager;
 import android.widget.EditText;
 import android.widget.ImageButton;
@@ -54,6 +57,7 @@ import com.termux.shared.termux.settings.properties.TermuxAppSharedProperties;
 import com.termux.shared.termux.theme.TermuxThemeUtils;
 import com.termux.shared.theme.NightMode;
 import com.termux.shared.view.ViewUtils;
+import com.termux.terminal.TerminalColors;
 import com.termux.terminal.TerminalSession;
 import com.termux.terminal.TerminalSessionClient;
 import com.termux.view.TerminalView;
@@ -62,6 +66,9 @@ import com.termux.view.TerminalViewClient;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.graphics.ColorUtils;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.viewpager.widget.ViewPager;
 
@@ -78,6 +85,49 @@ import java.util.Arrays;
  * about memory leaks.
  */
 public final class TermuxActivity extends AppCompatActivity implements ServiceConnection {
+
+    /**
+     * Key for the terminal toolbar background color in colors.properties. This is not a terminal
+     * color, so it is stripped from the properties before they are handed to the terminal color
+     * scheme, which rejects any key it does not know about.
+     */
+    public static final String KEY_TOOLBAR_BACKGROUND = "toolbar-background";
+    /** Default for {@link #KEY_TOOLBAR_BACKGROUND}, opaque black. */
+    public static final int DEFAULT_IVALUE_TOOLBAR_BACKGROUND = 0xFF000000;
+
+    /**
+     * Key for the extra keys button text color in colors.properties. Mirrors the theme attribute
+     * {@code extraKeysButtonTextColor}.
+     */
+    public static final String KEY_TOOLBAR_BUTTON_TEXT_COLOR = "toolbar-button-text-color";
+    /** Default for {@link #KEY_TOOLBAR_BUTTON_TEXT_COLOR}. */
+    public static final int DEFAULT_IVALUE_TOOLBAR_BUTTON_TEXT_COLOR = 0xFFFFFFFF;
+
+    /**
+     * Key for the extra keys button text color while a special button like CTRL is latched, in
+     * colors.properties. Mirrors the theme attribute {@code extraKeysButtonActiveTextColor}.
+     */
+    public static final String KEY_TOOLBAR_BUTTON_ACTIVE_TEXT_COLOR = "toolbar-button-active-text-color";
+    /** Default for {@link #KEY_TOOLBAR_BUTTON_ACTIVE_TEXT_COLOR}, the same red as the theme. */
+    public static final int DEFAULT_IVALUE_TOOLBAR_BUTTON_ACTIVE_TEXT_COLOR = 0xFFEF5350;
+
+    /**
+     * Key for the extra keys button background color in colors.properties. Mirrors the theme
+     * attribute {@code extraKeysButtonBackgroundColor}, but defaults to transparent so that the
+     * keys show the toolbar color through them.
+     */
+    public static final String KEY_TOOLBAR_BUTTON_BACKGROUND = "toolbar-button-background";
+    /** Default for {@link #KEY_TOOLBAR_BUTTON_BACKGROUND}, fully transparent. */
+    public static final int DEFAULT_IVALUE_TOOLBAR_BUTTON_BACKGROUND = 0x00000000;
+
+    /**
+     * Key for the extra keys button background color while a special button like CTRL is latched
+     * or while the long press popup is shown, in colors.properties. Mirrors the theme attribute
+     * {@code extraKeysButtonActiveBackgroundColor}. When left unset, a translucent black or white
+     * is picked based on the brightness of {@link #KEY_TOOLBAR_BACKGROUND} so that it stays
+     * readable on any toolbar color.
+     */
+    public static final String KEY_TOOLBAR_BUTTON_ACTIVE_BACKGROUND = "toolbar-button-active-background";
 
     /**
      * The connection to the {@link TermuxService}. Requested in {@link #onCreate(Bundle)} with a call to
@@ -174,6 +224,20 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     private int mNavBarHeight;
 
     private float mTerminalToolbarDefaultHeight;
+
+    /**
+     * The background color of the terminal toolbar, as a 0xAARRGGBB int. Set from the
+     * {@code toolbar-background} key of colors.properties, defaults to opaque black.
+     */
+    private int mToolbarBackgroundColor = DEFAULT_IVALUE_TOOLBAR_BACKGROUND;
+    /** The corner radius of the toolbar background in pixels, mirrored by the extra keys. */
+    private float mToolbarCornerRadius;
+
+    private int mToolbarButtonTextColor = DEFAULT_IVALUE_TOOLBAR_BUTTON_TEXT_COLOR;
+    private int mToolbarButtonActiveTextColor = DEFAULT_IVALUE_TOOLBAR_BUTTON_ACTIVE_TEXT_COLOR;
+    private int mToolbarButtonBackground = DEFAULT_IVALUE_TOOLBAR_BUTTON_BACKGROUND;
+    /** The color set in colors.properties, or {@code 0} to derive one from the toolbar color. */
+    private int mToolbarButtonActiveBackground;
 
 
     private static final int CONTEXT_MENU_SELECT_URL_ID = 0;
@@ -461,6 +525,151 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         AppCompatActivityUtils.setNightMode(this, NightMode.getAppNightMode().getName(), true);
     }
 
+    /**
+     * Color the status bar and navigation bar to match the terminal background color so that no
+     * contrasting bar is visible above/below the terminal.
+     *
+     * Called whenever the background color may have changed, see
+     * {@link TermuxTerminalSessionActivityClient#updateBackgroundColor()}.
+     *
+     * @param backgroundColor The terminal background color as a 0xAARRGGBB int.
+     */
+    public void updateSystemBarsColorForBackground(int backgroundColor) {
+        Window window = getWindow();
+
+        window.setStatusBarColor(backgroundColor);
+        window.setNavigationBarColor(backgroundColor);
+
+        // On Android 10+ the system draws a translucent scrim behind the bars to guarantee icon
+        // contrast, which shows up as a semi transparent bar. Disable it since the bar color now
+        // always matches the terminal background.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.setStatusBarContrastEnforced(false);
+            window.setNavigationBarContrastEnforced(false);
+        }
+
+        // Keep the bar icons readable: light icons on a dark background and dark icons on a light
+        // one. Uses the same perceived brightness helper and threshold as the cursor color.
+        boolean isLightBackground = TerminalColors.getPerceivedBrightnessOfColor(backgroundColor) >= 130;
+        WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(window, window.getDecorView());
+        controller.setAppearanceLightStatusBars(isLightBackground);
+        controller.setAppearanceLightNavigationBars(isLightBackground);
+    }
+
+    /**
+     * Set the toolbar background color coming from colors.properties and redraw the toolbar.
+     *
+     * @param toolbarBackgroundColor The background color as a 0xAARRGGBB int.
+     */
+    public void setToolbarBackgroundColor(int toolbarBackgroundColor) {
+        mToolbarBackgroundColor = toolbarBackgroundColor;
+        updateTerminalToolbarBackground();
+        // The automatic active button color is derived from the toolbar color.
+        applyExtraKeysStyling();
+    }
+
+    /**
+     * Set the extra keys button colors coming from colors.properties and push them to the extra keys
+     * view. Any argument that is {@code null} falls back to its default; a {@code null}
+     * {@code buttonActiveBackground} derives a translucent black or white from the toolbar
+     * background color so that it stays readable whatever the toolbar color is.
+     *
+     * @param buttonTextColor The button text color as a 0xAARRGGBB int, may be {@code null}.
+     * @param buttonActiveTextColor The latched special button text color, may be {@code null}.
+     * @param buttonBackground The button background color, may be {@code null}.
+     * @param buttonActiveBackground The latched/popup button background color, may be {@code null}.
+     */
+    public void setToolbarButtonColors(@Nullable Integer buttonTextColor, @Nullable Integer buttonActiveTextColor,
+                                       @Nullable Integer buttonBackground, @Nullable Integer buttonActiveBackground) {
+        mToolbarButtonTextColor = buttonTextColor != null ? buttonTextColor : DEFAULT_IVALUE_TOOLBAR_BUTTON_TEXT_COLOR;
+        mToolbarButtonActiveTextColor = buttonActiveTextColor != null ? buttonActiveTextColor : DEFAULT_IVALUE_TOOLBAR_BUTTON_ACTIVE_TEXT_COLOR;
+        mToolbarButtonBackground = buttonBackground != null ? buttonBackground : DEFAULT_IVALUE_TOOLBAR_BUTTON_BACKGROUND;
+        mToolbarButtonActiveBackground = buttonActiveBackground != null ? buttonActiveBackground : 0;
+
+        applyExtraKeysStyling();
+    }
+
+    /**
+     * Push the colors and the corner radius of the toolbar to the extra keys view, if it has been
+     * created already. It is only created once the terminal toolbar view pager inflates its first
+     * page, so this is a no-op before that happens.
+     */
+    private void applyExtraKeysStyling() {
+        if (mExtraKeysView == null) return;
+
+        mExtraKeysView.setButtonColors(mToolbarButtonTextColor, mToolbarButtonActiveTextColor,
+            mToolbarButtonBackground, getToolbarButtonActiveBackgroundColor());
+        mExtraKeysView.setButtonHighlightColor(getAdaptiveOverlayColor(mToolbarBackgroundColor));
+
+        // The key sits inside the toolbar, so it follows its curve with the edge margin subtracted.
+        mExtraKeysView.setButtonCornerRadius(Math.round(mToolbarCornerRadius) -
+            Math.round(ViewUtils.dpToPx(this, ExtraKeysView.BUTTON_EDGE_MARGIN_DP)));
+    }
+
+    /**
+     * Get the color to use behind a latched special button or the long press popup, either the one
+     * set in colors.properties or, when unset, a translucent overlay picked from the toolbar
+     * background brightness.
+     *
+     * @return Returns the color as a 0xAARRGGBB int.
+     */
+    private int getToolbarButtonActiveBackgroundColor() {
+        if (mToolbarButtonActiveBackground != 0) return mToolbarButtonActiveBackground;
+
+        return getAdaptiveOverlayColor(mToolbarBackgroundColor);
+    }
+
+    /**
+     * Pick a translucent overlay that stays readable on the given background color, by overlaying
+     * black on light backgrounds and white on dark ones.
+     *
+     * @param backgroundColor The background color as a 0xAARRGGBB int.
+     * @return Returns the overlay color as a 0xAARRGGBB int.
+     */
+    public static int getAdaptiveOverlayColor(int backgroundColor) {
+        boolean isLightBackground = TerminalColors.getPerceivedBrightnessOfColor(backgroundColor) >= 130;
+        return isLightBackground ? 0x33000000 : 0x33FFFFFF;
+    }
+
+    /**
+     * Redraw the terminal toolbar background using the {@code toolbar-corner-radius} and
+     * {@code toolbar-opacity} properties along with the color set by
+     * {@link #setToolbarBackgroundColor(int)}.
+     */
+    public void updateTerminalToolbarBackground() {
+        final ViewPager terminalToolbarViewPager = getTerminalToolbarViewPager();
+        if (terminalToolbarViewPager == null || mProperties == null) return;
+
+        int opacity = mProperties.getToolbarOpacity();
+        int alpha = Math.round(opacity / 100f * 255f);
+
+        GradientDrawable background = new GradientDrawable();
+        background.setColor(ColorUtils.setAlphaComponent(mToolbarBackgroundColor, alpha));
+        mToolbarCornerRadius = getToolbarCornerRadiusInPixels(terminalToolbarViewPager);
+        background.setCornerRadius(mToolbarCornerRadius);
+
+        // Without clipping, the extra keys buttons would be drawn over the rounded corners.
+        terminalToolbarViewPager.setClipToOutline(true);
+        terminalToolbarViewPager.setBackground(background);
+
+        applyExtraKeysStyling();
+    }
+
+    /**
+     * Convert the {@code toolbar-corner-radius} property into pixels. The property is a percentage
+     * of half the toolbar height, so {@code 100} gives a full capsule regardless of the number of
+     * rows, the height scale factor or the screen density.
+     *
+     * @param terminalToolbarViewPager The toolbar view pager to read the current height from.
+     * @return Returns the corner radius in pixels.
+     */
+    private float getToolbarCornerRadiusInPixels(ViewPager terminalToolbarViewPager) {
+        int toolbarHeight = terminalToolbarViewPager.getLayoutParams().height;
+        if (toolbarHeight <= 0) return 0;
+
+        return toolbarHeight / 2f * mProperties.getToolbarCornerRadius() / 100f;
+    }
+
     private void setMargins() {
         RelativeLayout relativeLayout = findViewById(R.id.activity_termux_root_relative_layout);
         int marginHorizontal = mProperties.getTerminalMarginHorizontal();
@@ -536,6 +745,10 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             (mTermuxTerminalExtraKeys.getExtraKeysInfo() == null ? 0 : mTermuxTerminalExtraKeys.getExtraKeysInfo().getMatrix().length) *
             mProperties.getTerminalToolbarHeightScaleFactor());
         terminalToolbarViewPager.setLayoutParams(layoutParams);
+
+        // The corner radius is a percentage of the toolbar height, so it can only be applied once
+        // the height for the current row count has been calculated.
+        updateTerminalToolbarBackground();
     }
 
     public void toggleTerminalToolbar() {
@@ -829,8 +1042,17 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         return mTermuxTerminalExtraKeys;
     }
 
+    /**
+     * Set the extra keys view, called when the terminal toolbar view pager inflates the extra keys
+     * page. This is the first point at which the view exists, so the colors parsed earlier from
+     * colors.properties have to be applied here as well, otherwise the view would keep the colors
+     * from its theme.
+     *
+     * @param extraKeysView The extra keys view that has been created.
+     */
     public void setExtraKeysView(ExtraKeysView extraKeysView) {
         mExtraKeysView = extraKeysView;
+        applyExtraKeysStyling();
     }
 
     public DrawerLayout getDrawer() {
@@ -971,6 +1193,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
             if (mExtraKeysView != null) {
                 mExtraKeysView.setButtonTextAllCaps(mProperties.shouldExtraKeysTextBeAllCaps());
+                applyExtraKeysStyling();
                 mExtraKeysView.reload(mTermuxTerminalExtraKeys.getExtraKeysInfo(), mTerminalToolbarDefaultHeight);
             }
 

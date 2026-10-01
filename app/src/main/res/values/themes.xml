@@ -27,8 +27,13 @@
              selecting text on pre-6.0 (non-floating toolbar). -->
         <item name="android:windowActionModeOverlay">true</item>
 
-        <item name="android:windowTranslucentStatus">true</item>
-        <item name="android:windowTranslucentNavigation">true</item>
+        <!-- Do NOT set windowTranslucentStatus/TranslucentNavigation here: they make the system
+             draw a translucent scrim over the bars and ignore statusBarColor. The bars are instead
+             colored at runtime to follow the terminal background color, see
+             TermuxActivity.updateSystemBarsColorForBackground(). The colors below are only a
+             fallback for the first frame before that runs. -->
+        <item name="android:statusBarColor">@color/black</item>
+        <item name="android:navigationBarColor">@color/black</item>
 
         <!-- https://developer.android.com/training/tv/start/start.html#transition-color -->
         <item name="android:windowAllowReturnTransitionOverlap">true</item>
