@@ -1033,8 +1033,17 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         return mTermuxTerminalExtraKeys;
     }
 
+    /**
+     * Set the extra keys view, called when the terminal toolbar view pager inflates the extra keys
+     * page. This is the first point at which the view exists, so the colors parsed earlier from
+     * colors.properties have to be applied here as well, otherwise the view would keep the colors
+     * from its theme.
+     *
+     * @param extraKeysView The extra keys view that has been created.
+     */
     public void setExtraKeysView(ExtraKeysView extraKeysView) {
         mExtraKeysView = extraKeysView;
+        applyToolbarButtonColors();
     }
 
     public DrawerLayout getDrawer() {

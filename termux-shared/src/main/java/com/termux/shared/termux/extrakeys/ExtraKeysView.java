@@ -3,6 +3,7 @@ package com.termux.shared.termux.extrakeys;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.res.ColorStateList;
+import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
@@ -224,6 +225,8 @@ public final class ExtraKeysView extends GridLayout {
         setRepetitiveKeys(ExtraKeysConstants.PRIMARY_REPETITIVE_KEYS);
         setSpecialButtons(getDefaultSpecialButtons(this));
 
+        setButtonHighlightColor(DEFAULT_BUTTON_HIGHLIGHT_COLOR);
+
         setButtonColors(
             ThemeUtils.getSystemAttrColor(context, ATTR_BUTTON_TEXT_COLOR, DEFAULT_BUTTON_TEXT_COLOR),
             ThemeUtils.getSystemAttrColor(context, ATTR_BUTTON_ACTIVE_TEXT_COLOR, DEFAULT_BUTTON_ACTIVE_TEXT_COLOR),
@@ -232,7 +235,6 @@ public final class ExtraKeysView extends GridLayout {
 
         setLongPressTimeout(ViewConfiguration.getLongPressTimeout());
         setLongPressRepeatDelay(DEFAULT_LONG_PRESS_REPEAT_DELAY);
-        setButtonHighlightColor(DEFAULT_BUTTON_HIGHLIGHT_COLOR);
     }
 
 
@@ -291,6 +293,8 @@ public final class ExtraKeysView extends GridLayout {
         mButtonActiveTextColor = buttonActiveTextColor;
         mButtonBackgroundColor = buttonBackgroundColor;
         mButtonActiveBackgroundColor = buttonActiveBackgroundColor;
+
+        refreshButtonColors();
     }
 
 
@@ -346,6 +350,8 @@ public final class ExtraKeysView extends GridLayout {
     /** Set {@link #mButtonHighlightColor}. */
     public void setButtonHighlightColor(int buttonHighlightColor) {
         mButtonHighlightColor = buttonHighlightColor;
+
+        refreshButtonColors();
     }
 
 
@@ -371,8 +377,30 @@ public final class ExtraKeysView extends GridLayout {
 
         GradientDrawable mask = new GradientDrawable();
         mask.setShape(GradientDrawable.OVAL);
+        // The mask is used through its alpha: only the opaque parts of it let the ripple through,
+        // so it has to be opaque inside the oval or the highlight would be clipped away entirely.
+        mask.setColor(Color.WHITE);
 
         return new RippleDrawable(ColorStateList.valueOf(rippleColor), content, mask);
+    }
+
+    /**
+     * Re-apply the current button colors to the buttons that have already been created, so that a
+     * color change takes effect without waiting for {@link #reload(ExtraKeysInfo, float)} to run
+     * again.
+     */
+    private void refreshButtonColors() {
+        for (SpecialButtonState state : mSpecialButtons.values()) {
+            for (MaterialButton button : state.buttons) {
+                button.setTextColor(state.isActive ? mButtonActiveTextColor : mButtonTextColor);
+            }
+        }
+
+        for (int i = 0; i < getChildCount(); i++) {
+            View child = getChildAt(i);
+            if (child instanceof MaterialButton)
+                applyButtonBackground((MaterialButton) child, mButtonBackgroundColor, mButtonHighlightColor);
+        }
     }
 
     /**
