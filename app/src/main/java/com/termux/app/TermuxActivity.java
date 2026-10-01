@@ -10,6 +10,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.view.ContextMenu;
@@ -19,6 +20,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
 import android.view.WindowManager;
 import android.widget.EditText;
 import android.widget.ImageButton;
@@ -54,6 +56,7 @@ import com.termux.shared.termux.settings.properties.TermuxAppSharedProperties;
 import com.termux.shared.termux.theme.TermuxThemeUtils;
 import com.termux.shared.theme.NightMode;
 import com.termux.shared.view.ViewUtils;
+import com.termux.terminal.TerminalColors;
 import com.termux.terminal.TerminalSession;
 import com.termux.terminal.TerminalSessionClient;
 import com.termux.view.TerminalView;
@@ -62,6 +65,8 @@ import com.termux.view.TerminalViewClient;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.viewpager.widget.ViewPager;
 
@@ -459,6 +464,37 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         // trigger recreation of activity when uiMode/dark mode configuration is changed so that
         // day or night theme takes affect.
         AppCompatActivityUtils.setNightMode(this, NightMode.getAppNightMode().getName(), true);
+    }
+
+    /**
+     * Color the status bar and navigation bar to match the terminal background color so that no
+     * contrasting bar is visible above/below the terminal.
+     *
+     * Called whenever the background color may have changed, see
+     * {@link TermuxTerminalSessionActivityClient#updateBackgroundColor()}.
+     *
+     * @param backgroundColor The terminal background color as a 0xAARRGGBB int.
+     */
+    public void updateSystemBarsColorForBackground(int backgroundColor) {
+        Window window = getWindow();
+
+        window.setStatusBarColor(backgroundColor);
+        window.setNavigationBarColor(backgroundColor);
+
+        // On Android 10+ the system draws a translucent scrim behind the bars to guarantee icon
+        // contrast, which shows up as a semi transparent bar. Disable it since the bar color now
+        // always matches the terminal background.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.setStatusBarContrastEnforced(false);
+            window.setNavigationBarContrastEnforced(false);
+        }
+
+        // Keep the bar icons readable: light icons on a dark background and dark icons on a light
+        // one. Uses the same perceived brightness helper and threshold as the cursor color.
+        boolean isLightBackground = TerminalColors.getPerceivedBrightnessOfColor(backgroundColor) >= 130;
+        WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(window, window.getDecorView());
+        controller.setAppearanceLightStatusBars(isLightBackground);
+        controller.setAppearanceLightNavigationBars(isLightBackground);
     }
 
     private void setMargins() {
