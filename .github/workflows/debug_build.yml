@@ -31,6 +31,10 @@ jobs:
         shell: bash {0}
         env:
           PACKAGE_VARIANT: ${{ matrix.package_variant }}
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: |
           exit_on_error() { echo "$1"; exit 1; }
 
@@ -48,8 +52,19 @@ jobs:
            exit_on_error "The versionName '${RELEASE_VERSION_NAME/v/}' is not a valid version as per semantic version '2.0.0' spec in the format 'major.minor.patch(-prerelease)(+buildmetadata)'. https://semver.org/spec/v2.0.0.html."
           fi
 
-          APK_DIR_PATH="./app/build/outputs/apk/debug"
-          APK_VERSION_TAG="$RELEASE_VERSION_NAME-${{ env.PACKAGE_VARIANT }}-github-debug" # Note the "-", GITHUB_SHA will already have "+" before it
+          echo "Setting up signing"
+          for var in RELEASE_KEYSTORE_BASE64 RELEASE_KEY_ALIAS RELEASE_STORE_PASSWORD RELEASE_KEY_PASSWORD; do
+            if [ -z "${!var}" ]; then
+              exit_on_error "Repository secret '$var' is not set."
+            fi
+          done
+          KEYSTORE_PATH="$RUNNER_TEMP/release.keystore"
+          if ! printf '%s' "$RELEASE_KEYSTORE_BASE64" | base64 -d > "$KEYSTORE_PATH"; then
+            exit_on_error "Could not decode RELEASE_KEYSTORE_BASE64, it does not hold a base64 encoded keystore."
+          fi
+
+          APK_DIR_PATH="./app/build/outputs/apk/release"
+          APK_VERSION_TAG="$RELEASE_VERSION_NAME-${{ env.PACKAGE_VARIANT }}-github-release" # Note the "-", GITHUB_SHA will already have "+" before it
           APK_BASENAME_PREFIX="termux-app_$APK_VERSION_TAG"
 
           # Used by attachment steps later
@@ -61,7 +76,22 @@ jobs:
           export TERMUX_APP_VERSION_NAME="${RELEASE_VERSION_NAME/v/}" # Used by app/build.gradle
           export TERMUX_APK_VERSION_TAG="$APK_VERSION_TAG" # Used by app/build.gradle
           export TERMUX_PACKAGE_VARIANT="${{ env.PACKAGE_VARIANT }}" # Used by app/build.gradle
-          if ! ./gradlew assembleDebug; then
+          export TERMUX_RELEASE_KEYSTORE_PATH="$KEYSTORE_PATH" # Used by app/build.gradle
+          export TERMUX_RELEASE_KEY_ALIAS="$RELEASE_KEY_ALIAS" # Used by app/build.gradle
+          export TERMUX_RELEASE_STORE_PASSWORD="$RELEASE_STORE_PASSWORD" # Used by app/build.gradle
+          export TERMUX_RELEASE_KEY_PASSWORD="$RELEASE_KEY_PASSWORD" # Used by app/build.gradle
+          export TERMUX_SPLIT_APKS_FOR_RELEASE_BUILDS=1 # Used by app/build.gradle
+
+          # The bootstrap zips are embedded into the native library with .incbin, but
+          # downloadBootstraps is only wired to the java compile task, so the ndk build may run
+          # before they exist. Downloading them up front avoids that without having to change the
+          # shared build script, the task is a no-op once the files are in place.
+          echo "Downloading bootstrap zips"
+          if ! ./gradlew downloadBootstraps; then
+            exit_on_error "Downloading bootstrap zips failed for '$APK_VERSION_TAG' build."
+          fi
+
+          if ! ./gradlew assembleRelease; then
             exit_on_error "Build failed for '$APK_VERSION_TAG' build."
           fi
 
