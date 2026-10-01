@@ -13,4 +13,8 @@
     android:paddingTop="0dp"
     android:textCursorDrawable="@null"
     android:paddingBottom="0dp"
+    <!-- Same value as ExtraKeysView.BUTTON_EDGE_MARGIN_DP, but written separately on purpose so
+         that the two toolbar pages can be inset differently if that is wanted later. -->
+    android:paddingLeft="4dp"
+    android:paddingRight="4dp"
     tools:ignore="LabelFor" />

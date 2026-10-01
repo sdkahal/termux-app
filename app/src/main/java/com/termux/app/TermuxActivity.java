@@ -230,6 +230,8 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      * {@code toolbar-background} key of colors.properties, defaults to opaque black.
      */
     private int mToolbarBackgroundColor = DEFAULT_IVALUE_TOOLBAR_BACKGROUND;
+    /** The corner radius of the toolbar background in pixels, mirrored by the extra keys. */
+    private int mToolbarCornerRadius;
 
     private int mToolbarButtonTextColor = DEFAULT_IVALUE_TOOLBAR_BUTTON_TEXT_COLOR;
     private int mToolbarButtonActiveTextColor = DEFAULT_IVALUE_TOOLBAR_BUTTON_ACTIVE_TEXT_COLOR;
@@ -563,7 +565,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         mToolbarBackgroundColor = toolbarBackgroundColor;
         updateTerminalToolbarBackground();
         // The automatic active button color is derived from the toolbar color.
-        applyToolbarButtonColors();
+        applyExtraKeysStyling();
     }
 
     /**
@@ -584,20 +586,24 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         mToolbarButtonBackground = buttonBackground != null ? buttonBackground : DEFAULT_IVALUE_TOOLBAR_BUTTON_BACKGROUND;
         mToolbarButtonActiveBackground = buttonActiveBackground != null ? buttonActiveBackground : 0;
 
-        applyToolbarButtonColors();
+        applyExtraKeysStyling();
     }
 
     /**
-     * Push the extra keys button colors to the extra keys view, if it has been created already. It
-     * is only created once the terminal toolbar view pager inflates its first page, so this is a
-     * no-op before that happens.
+     * Push the colors and the corner radius of the toolbar to the extra keys view, if it has been
+     * created already. It is only created once the terminal toolbar view pager inflates its first
+     * page, so this is a no-op before that happens.
      */
-    private void applyToolbarButtonColors() {
+    private void applyExtraKeysStyling() {
         if (mExtraKeysView == null) return;
 
         mExtraKeysView.setButtonColors(mToolbarButtonTextColor, mToolbarButtonActiveTextColor,
             mToolbarButtonBackground, getToolbarButtonActiveBackgroundColor());
         mExtraKeysView.setButtonHighlightColor(getAdaptiveOverlayColor(mToolbarBackgroundColor));
+
+        // The key sits inside the toolbar, so it follows its curve with the edge margin subtracted.
+        mExtraKeysView.setButtonCornerRadius(mToolbarCornerRadius -
+            Math.round(ViewUtils.dpToPx(this, ExtraKeysView.BUTTON_EDGE_MARGIN_DP)));
     }
 
     /**
@@ -639,11 +645,14 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         GradientDrawable background = new GradientDrawable();
         background.setColor(ColorUtils.setAlphaComponent(mToolbarBackgroundColor, alpha));
-        background.setCornerRadius(getToolbarCornerRadiusInPixels(terminalToolbarViewPager));
+        mToolbarCornerRadius = getToolbarCornerRadiusInPixels(terminalToolbarViewPager);
+        background.setCornerRadius(mToolbarCornerRadius);
 
         // Without clipping, the extra keys buttons would be drawn over the rounded corners.
         terminalToolbarViewPager.setClipToOutline(true);
         terminalToolbarViewPager.setBackground(background);
+
+        applyExtraKeysStyling();
     }
 
     /**
@@ -1043,7 +1052,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      */
     public void setExtraKeysView(ExtraKeysView extraKeysView) {
         mExtraKeysView = extraKeysView;
-        applyToolbarButtonColors();
+        applyExtraKeysStyling();
     }
 
     public DrawerLayout getDrawer() {
@@ -1184,7 +1193,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
             if (mExtraKeysView != null) {
                 mExtraKeysView.setButtonTextAllCaps(mProperties.shouldExtraKeysTextBeAllCaps());
-                applyToolbarButtonColors();
+                applyExtraKeysStyling();
                 mExtraKeysView.reload(mTermuxTerminalExtraKeys.getExtraKeysInfo(), mTerminalToolbarDefaultHeight);
             }
 
