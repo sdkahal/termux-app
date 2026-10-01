@@ -503,6 +503,11 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
                 }
             }
 
+            // The toolbar background is not a terminal color, so it has to be taken out before the
+            // properties are handed over since TerminalColorScheme.updateWith() throws on any key
+            // it does not know about, which would break loading the whole color scheme.
+            mActivity.setToolbarBackgroundColor(parseToolbarBackgroundColor(props));
+
             TerminalColors.COLOR_SCHEME.updateWith(props);
             TerminalSession session = mActivity.getCurrentSession();
             if (session != null && session.getEmulator() != null) {
@@ -515,6 +520,28 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
         } catch (Exception e) {
             Logger.logStackTraceWithMessage(LOG_TAG, "Error in checkForFontAndColors()", e);
         }
+    }
+
+    /**
+     * Take the {@code toolbar-background} color out of the given colors.properties and remove the
+     * key from them, so that what is left can be parsed by the terminal color scheme.
+     *
+     * @param props The properties loaded from colors.properties, modified in place.
+     * @return Returns the toolbar background color as a 0xAARRGGBB int, or the default opaque
+     * black if the key is missing or holds an unparsable color.
+     */
+    private int parseToolbarBackgroundColor(Properties props) {
+        Object value = props.remove(TermuxActivity.KEY_TOOLBAR_BACKGROUND);
+        if (value == null) return TermuxActivity.DEFAULT_IVALUE_TOOLBAR_BACKGROUND;
+
+        int color = TerminalColors.parse(value.toString());
+        if (color == 0) {
+            Logger.logError(LOG_TAG, "The property \"" + TermuxActivity.KEY_TOOLBAR_BACKGROUND +
+                "\" has invalid color: '" + value + "'. Using default color instead.");
+            return TermuxActivity.DEFAULT_IVALUE_TOOLBAR_BACKGROUND;
+        }
+
+        return color;
     }
 
     public void updateBackgroundColor() {

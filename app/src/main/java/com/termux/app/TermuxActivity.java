@@ -9,6 +9,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -65,6 +66,7 @@ import com.termux.view.TerminalViewClient;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.graphics.ColorUtils;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
@@ -83,6 +85,15 @@ import java.util.Arrays;
  * about memory leaks.
  */
 public final class TermuxActivity extends AppCompatActivity implements ServiceConnection {
+
+    /**
+     * Key for the terminal toolbar background color in colors.properties. This is not a terminal
+     * color, so it is stripped from the properties before they are handed to the terminal color
+     * scheme, which rejects any key it does not know about.
+     */
+    public static final String KEY_TOOLBAR_BACKGROUND = "toolbar-background";
+    /** Default for {@link #KEY_TOOLBAR_BACKGROUND}, opaque black. */
+    public static final int DEFAULT_IVALUE_TOOLBAR_BACKGROUND = 0xFF000000;
 
     /**
      * The connection to the {@link TermuxService}. Requested in {@link #onCreate(Bundle)} with a call to
@@ -179,6 +190,12 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     private int mNavBarHeight;
 
     private float mTerminalToolbarDefaultHeight;
+
+    /**
+     * The background color of the terminal toolbar, as a 0xAARRGGBB int. Set from the
+     * {@code toolbar-background} key of colors.properties, defaults to opaque black.
+     */
+    private int mToolbarBackgroundColor = DEFAULT_IVALUE_TOOLBAR_BACKGROUND;
 
 
     private static final int CONTEXT_MENU_SELECT_URL_ID = 0;
@@ -495,6 +512,37 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(window, window.getDecorView());
         controller.setAppearanceLightStatusBars(isLightBackground);
         controller.setAppearanceLightNavigationBars(isLightBackground);
+    }
+
+    /**
+     * Set the toolbar background color coming from colors.properties and redraw the toolbar.
+     *
+     * @param toolbarBackgroundColor The background color as a 0xAARRGGBB int.
+     */
+    public void setToolbarBackgroundColor(int toolbarBackgroundColor) {
+        mToolbarBackgroundColor = toolbarBackgroundColor;
+        updateTerminalToolbarBackground();
+    }
+
+    /**
+     * Redraw the terminal toolbar background using the {@code toolbar-corner-radius} and
+     * {@code toolbar-opacity} properties along with the color set by
+     * {@link #setToolbarBackgroundColor(int)}.
+     */
+    public void updateTerminalToolbarBackground() {
+        final ViewPager terminalToolbarViewPager = getTerminalToolbarViewPager();
+        if (terminalToolbarViewPager == null || mProperties == null) return;
+
+        int opacity = mProperties.getToolbarOpacity();
+        int alpha = Math.round(opacity / 100f * 255f);
+
+        GradientDrawable background = new GradientDrawable();
+        background.setColor(ColorUtils.setAlphaComponent(mToolbarBackgroundColor, alpha));
+        background.setCornerRadius(ViewUtils.dpToPx(this, mProperties.getToolbarCornerRadius()));
+
+        // Without clipping, the extra keys buttons would be drawn over the rounded corners.
+        terminalToolbarViewPager.setClipToOutline(true);
+        terminalToolbarViewPager.setBackground(background);
     }
 
     private void setMargins() {
@@ -1016,6 +1064,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         setMargins();
         setTerminalToolbarHeight();
+        updateTerminalToolbarBackground();
 
         FileReceiverActivity.updateFileReceiverActivityComponentsState(this);
 
