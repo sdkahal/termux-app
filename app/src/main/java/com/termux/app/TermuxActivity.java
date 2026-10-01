@@ -231,7 +231,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      */
     private int mToolbarBackgroundColor = DEFAULT_IVALUE_TOOLBAR_BACKGROUND;
     /** The corner radius of the toolbar background in pixels, mirrored by the extra keys. */
-    private int mToolbarCornerRadius;
+    private float mToolbarCornerRadius;
 
     private int mToolbarButtonTextColor = DEFAULT_IVALUE_TOOLBAR_BUTTON_TEXT_COLOR;
     private int mToolbarButtonActiveTextColor = DEFAULT_IVALUE_TOOLBAR_BUTTON_ACTIVE_TEXT_COLOR;
@@ -602,7 +602,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         mExtraKeysView.setButtonHighlightColor(getAdaptiveOverlayColor(mToolbarBackgroundColor));
 
         // The key sits inside the toolbar, so it follows its curve with the edge margin subtracted.
-        mExtraKeysView.setButtonCornerRadius(mToolbarCornerRadius -
+        mExtraKeysView.setButtonCornerRadius(Math.round(mToolbarCornerRadius) -
             Math.round(ViewUtils.dpToPx(this, ExtraKeysView.BUTTON_EDGE_MARGIN_DP)));
     }
 
