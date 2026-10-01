@@ -273,6 +273,10 @@ public abstract class TermuxSharedProperties {
                 return (int) getTerminalMarginVerticalInternalPropertyValueFromValue(value);
             case TermuxPropertyConstants.KEY_TERMINAL_TRANSCRIPT_ROWS:
                 return (int) getTerminalTranscriptRowsInternalPropertyValueFromValue(value);
+            case TermuxPropertyConstants.KEY_TOOLBAR_CORNER_RADIUS:
+                return (int) getToolbarCornerRadiusInternalPropertyValueFromValue(value);
+            case TermuxPropertyConstants.KEY_TOOLBAR_OPACITY:
+                return (int) getToolbarOpacityInternalPropertyValueFromValue(value);
 
             /* float */
             case TermuxPropertyConstants.KEY_TERMINAL_TOOLBAR_HEIGHT_SCALE_FACTOR:
@@ -453,6 +457,45 @@ public abstract class TermuxSharedProperties {
             TermuxPropertyConstants.DEFAULT_IVALUE_TERMINAL_TOOLBAR_HEIGHT_SCALE_FACTOR,
             TermuxPropertyConstants.IVALUE_TERMINAL_TOOLBAR_HEIGHT_SCALE_FACTOR_MIN,
             TermuxPropertyConstants.IVALUE_TERMINAL_TOOLBAR_HEIGHT_SCALE_FACTOR_MAX,
+            true, true, LOG_TAG);
+    }
+
+    /**
+     * Returns the int for the value if its not null and is between
+     * {@link TermuxPropertyConstants#IVALUE_TOOLBAR_CORNER_RADIUS_MIN} and
+     * {@link TermuxPropertyConstants#IVALUE_TOOLBAR_CORNER_RADIUS_MAX}, otherwise returns
+     * {@link TermuxPropertyConstants#DEFAULT_IVALUE_TOOLBAR_CORNER_RADIUS}.
+     *
+     * The value is a percentage of half the toolbar height, see
+     * {@link TermuxPropertyConstants#KEY_TOOLBAR_CORNER_RADIUS}.
+     *
+     * @param value The {@link String} value to convert.
+     * @return Returns the internal value for value.
+     */
+    public static int getToolbarCornerRadiusInternalPropertyValueFromValue(String value) {
+        return SharedProperties.getDefaultIfNotInRange(TermuxPropertyConstants.KEY_TOOLBAR_CORNER_RADIUS,
+            DataUtils.getIntFromString(value, TermuxPropertyConstants.DEFAULT_IVALUE_TOOLBAR_CORNER_RADIUS),
+            TermuxPropertyConstants.DEFAULT_IVALUE_TOOLBAR_CORNER_RADIUS,
+            TermuxPropertyConstants.IVALUE_TOOLBAR_CORNER_RADIUS_MIN,
+            TermuxPropertyConstants.IVALUE_TOOLBAR_CORNER_RADIUS_MAX,
+            true, true, LOG_TAG);
+    }
+
+    /**
+     * Returns the int for the value if its not null and is between
+     * {@link TermuxPropertyConstants#IVALUE_TOOLBAR_OPACITY_MIN} and
+     * {@link TermuxPropertyConstants#IVALUE_TOOLBAR_OPACITY_MAX},
+     * otherwise returns {@link TermuxPropertyConstants#DEFAULT_IVALUE_TOOLBAR_OPACITY}.
+     *
+     * @param value The {@link String} value to convert.
+     * @return Returns the internal value for value.
+     */
+    public static int getToolbarOpacityInternalPropertyValueFromValue(String value) {
+        return SharedProperties.getDefaultIfNotInRange(TermuxPropertyConstants.KEY_TOOLBAR_OPACITY,
+            DataUtils.getIntFromString(value, TermuxPropertyConstants.DEFAULT_IVALUE_TOOLBAR_OPACITY),
+            TermuxPropertyConstants.DEFAULT_IVALUE_TOOLBAR_OPACITY,
+            TermuxPropertyConstants.IVALUE_TOOLBAR_OPACITY_MIN,
+            TermuxPropertyConstants.IVALUE_TOOLBAR_OPACITY_MAX,
             true, true, LOG_TAG);
     }
 
@@ -656,6 +699,14 @@ public abstract class TermuxSharedProperties {
 
     public float getTerminalToolbarHeightScaleFactor() {
         return (float) getInternalPropertyValue(TermuxPropertyConstants.KEY_TERMINAL_TOOLBAR_HEIGHT_SCALE_FACTOR, true);
+    }
+
+    public int getToolbarCornerRadius() {
+        return (int) getInternalPropertyValue(TermuxPropertyConstants.KEY_TOOLBAR_CORNER_RADIUS, true);
+    }
+
+    public int getToolbarOpacity() {
+        return (int) getInternalPropertyValue(TermuxPropertyConstants.KEY_TOOLBAR_OPACITY, true);
     }
 
     public boolean isBackKeyTheEscapeKey() {

@@ -22,7 +22,7 @@ import java.util.LinkedList;
 
 /**
  * A document provider for the Storage Access Framework which exposes the files in the
- * $HOME/ directory to other apps.
+ * $FILES/ directory to other apps.
  * <p/>
  * Note that this replaces providing an activity matching the ACTION_GET_CONTENT intent:
  * <p/>
@@ -35,7 +35,7 @@ public class TermuxDocumentsProvider extends DocumentsProvider {
 
     private static final String ALL_MIME_TYPES = "*/*";
 
-    private static final File BASE_DIR = TermuxConstants.TERMUX_HOME_DIR;
+    private static final File BASE_DIR = TermuxConstants.TERMUX_FILES_DIR;
 
 
     // The default columns to return information about a root if no specific
@@ -167,15 +167,15 @@ public class TermuxDocumentsProvider extends DocumentsProvider {
         final int MAX_SEARCH_RESULTS = 50;
         while (!pending.isEmpty() && result.getCount() < MAX_SEARCH_RESULTS) {
             final File file = pending.removeFirst();
-            // Avoid directories outside the $HOME directory linked with symlinks (to avoid e.g. search
-            // through the whole SD card).
-            boolean isInsideHome;
+            // Avoid directories outside the $FILES directory linked with symlinks (to avoid e.g.
+            // search through the whole SD card).
+            boolean isInsideBaseDir;
             try {
-                isInsideHome = file.getCanonicalPath().startsWith(TermuxConstants.TERMUX_HOME_DIR_PATH);
+                isInsideBaseDir = file.getCanonicalPath().startsWith(TermuxConstants.TERMUX_FILES_DIR_PATH);
             } catch (IOException e) {
-                isInsideHome = true;
+                isInsideBaseDir = true;
             }
-            if (isInsideHome) {
+            if (isInsideBaseDir) {
                 if (file.isDirectory()) {
                     Collections.addAll(pending, file.listFiles());
                 } else {
