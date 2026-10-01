@@ -141,6 +141,8 @@ public final class ExtraKeysView extends GridLayout {
     public static final int BUTTON_MARGIN_DP = 2;
     /** The gap between the outermost extra keys and the edge of the toolbar, in dp. */
     public static final int BUTTON_EDGE_MARGIN_DP = 4;
+    /** The gap between the long press popup and the key it was opened from, in dp. */
+    public static final int POPUP_MARGIN_DP = 8;
 
 
 
@@ -749,7 +751,10 @@ public final class ExtraKeysView extends GridLayout {
         mPopupWindow.setContentView(button);
         mPopupWindow.setOutsideTouchable(true);
         mPopupWindow.setFocusable(false);
-        mPopupWindow.showAsDropDown(view, 0, -2 * height);
+        // The popup is dropped one key height above the key plus the margin, so that it does not
+        // touch the key it belongs to.
+        int popupMargin = Math.round(ViewUtils.dpToPx(getContext(), POPUP_MARGIN_DP));
+        mPopupWindow.showAsDropDown(view, 0, -2 * height - popupMargin);
     }
 
     public void dismissPopup() {
