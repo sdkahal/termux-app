@@ -255,7 +255,11 @@ public final class TermuxPropertyConstants {
 
 
 
-    /** Defines the key for the corner radius of the terminal toolbar background in dp units */
+    /**
+     * Defines the key for the corner radius of the terminal toolbar background, as a percentage of
+     * half the toolbar height. So {@code 50} is half the height and {@code 100} always makes the
+     * toolbar a full capsule, no matter how many rows it has or the screen density.
+     */
     public static final String KEY_TOOLBAR_CORNER_RADIUS =  "toolbar-corner-radius"; // Default: "toolbar-corner-radius"
     public static final int IVALUE_TOOLBAR_CORNER_RADIUS_MIN = 0;
     public static final int IVALUE_TOOLBAR_CORNER_RADIUS_MAX = 100;

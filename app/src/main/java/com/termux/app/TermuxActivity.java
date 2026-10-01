@@ -538,11 +538,26 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         GradientDrawable background = new GradientDrawable();
         background.setColor(ColorUtils.setAlphaComponent(mToolbarBackgroundColor, alpha));
-        background.setCornerRadius(ViewUtils.dpToPx(this, mProperties.getToolbarCornerRadius()));
+        background.setCornerRadius(getToolbarCornerRadiusInPixels(terminalToolbarViewPager));
 
         // Without clipping, the extra keys buttons would be drawn over the rounded corners.
         terminalToolbarViewPager.setClipToOutline(true);
         terminalToolbarViewPager.setBackground(background);
+    }
+
+    /**
+     * Convert the {@code toolbar-corner-radius} property into pixels. The property is a percentage
+     * of half the toolbar height, so {@code 100} gives a full capsule regardless of the number of
+     * rows, the height scale factor or the screen density.
+     *
+     * @param terminalToolbarViewPager The toolbar view pager to read the current height from.
+     * @return Returns the corner radius in pixels.
+     */
+    private float getToolbarCornerRadiusInPixels(ViewPager terminalToolbarViewPager) {
+        int toolbarHeight = terminalToolbarViewPager.getLayoutParams().height;
+        if (toolbarHeight <= 0) return 0;
+
+        return toolbarHeight / 2f * mProperties.getToolbarCornerRadius() / 100f;
     }
 
     private void setMargins() {
@@ -620,6 +635,10 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
             (mTermuxTerminalExtraKeys.getExtraKeysInfo() == null ? 0 : mTermuxTerminalExtraKeys.getExtraKeysInfo().getMatrix().length) *
             mProperties.getTerminalToolbarHeightScaleFactor());
         terminalToolbarViewPager.setLayoutParams(layoutParams);
+
+        // The corner radius is a percentage of the toolbar height, so it can only be applied once
+        // the height for the current row count has been calculated.
+        updateTerminalToolbarBackground();
     }
 
     public void toggleTerminalToolbar() {
@@ -1064,7 +1083,6 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         setMargins();
         setTerminalToolbarHeight();
-        updateTerminalToolbarBackground();
 
         FileReceiverActivity.updateFileReceiverActivityComponentsState(this);
 

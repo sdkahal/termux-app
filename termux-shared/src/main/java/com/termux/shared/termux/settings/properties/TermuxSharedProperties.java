@@ -463,8 +463,11 @@ public abstract class TermuxSharedProperties {
     /**
      * Returns the int for the value if its not null and is between
      * {@link TermuxPropertyConstants#IVALUE_TOOLBAR_CORNER_RADIUS_MIN} and
-     * {@link TermuxPropertyConstants#IVALUE_TOOLBAR_CORNER_RADIUS_MAX},
-     * otherwise returns {@link TermuxPropertyConstants#DEFAULT_IVALUE_TOOLBAR_CORNER_RADIUS}.
+     * {@link TermuxPropertyConstants#IVALUE_TOOLBAR_CORNER_RADIUS_MAX}, otherwise returns
+     * {@link TermuxPropertyConstants#DEFAULT_IVALUE_TOOLBAR_CORNER_RADIUS}.
+     *
+     * The value is a percentage of half the toolbar height, see
+     * {@link TermuxPropertyConstants#KEY_TOOLBAR_CORNER_RADIUS}.
      *
      * @param value The {@link String} value to convert.
      * @return Returns the internal value for value.
