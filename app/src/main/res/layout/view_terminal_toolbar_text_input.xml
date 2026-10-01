@@ -1,23 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-    The left/right padding is the same value as ExtraKeysView.BUTTON_EDGE_MARGIN_DP, but written
-    separately on purpose so that the two toolbar pages can be inset differently if that is wanted
-    later. A comment cannot sit between the attributes of an element, so it lives here instead.
+    The horizontal padding here is what shortens the underline of the text input. Padding on the
+    EditText itself would only move its text, never its background drawable, so the whole input has
+    to be inset instead. A margin cannot be used either: the ViewPager measures its pages with an
+    exact width and lays them out ignoring margins. The value is written separately from
+    ExtraKeysView.BUTTON_EDGE_MARGIN_DP on purpose, so that the two toolbar pages can be inset
+    differently if that is wanted later.
 -->
-<EditText xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/terminal_toolbar_text_input"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:imeOptions="actionSend|flagNoFullscreen"
-    android:maxLines="1"
-    android:inputType="text"
-    android:importantForAutofill="no"
-    android:textColor="@android:color/white"
-    android:textColorHighlight="@android:color/darker_gray"
-    android:paddingTop="0dp"
-    android:textCursorDrawable="@null"
-    android:paddingBottom="0dp"
-    android:paddingLeft="4dp"
-    android:paddingRight="4dp"
-    tools:ignore="LabelFor" />
+    android:paddingLeft="13dp"
+    android:paddingRight="13dp">
+
+    <EditText
+        android:id="@+id/terminal_toolbar_text_input"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:imeOptions="actionSend|flagNoFullscreen"
+        android:maxLines="1"
+        android:inputType="text"
+        android:importantForAutofill="no"
+        android:textColor="@android:color/white"
+        android:textColorHighlight="@android:color/darker_gray"
+        android:paddingTop="0dp"
+        android:textCursorDrawable="@null"
+        android:paddingBottom="0dp"
+        tools:ignore="LabelFor" />
+
+</FrameLayout>
