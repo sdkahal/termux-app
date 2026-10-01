@@ -597,6 +597,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
         mExtraKeysView.setButtonColors(mToolbarButtonTextColor, mToolbarButtonActiveTextColor,
             mToolbarButtonBackground, getToolbarButtonActiveBackgroundColor());
+        mExtraKeysView.setButtonHighlightColor(getAdaptiveOverlayColor(mToolbarBackgroundColor));
     }
 
     /**
