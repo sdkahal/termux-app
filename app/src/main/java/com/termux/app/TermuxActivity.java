@@ -96,6 +96,40 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     public static final int DEFAULT_IVALUE_TOOLBAR_BACKGROUND = 0xFF000000;
 
     /**
+     * Key for the extra keys button text color in colors.properties. Mirrors the theme attribute
+     * {@code extraKeysButtonTextColor}.
+     */
+    public static final String KEY_TOOLBAR_BUTTON_TEXT_COLOR = "toolbar-button-text-color";
+    /** Default for {@link #KEY_TOOLBAR_BUTTON_TEXT_COLOR}. */
+    public static final int DEFAULT_IVALUE_TOOLBAR_BUTTON_TEXT_COLOR = 0xFFFFFFFF;
+
+    /**
+     * Key for the extra keys button text color while a special button like CTRL is latched, in
+     * colors.properties. Mirrors the theme attribute {@code extraKeysButtonActiveTextColor}.
+     */
+    public static final String KEY_TOOLBAR_BUTTON_ACTIVE_TEXT_COLOR = "toolbar-button-active-text-color";
+    /** Default for {@link #KEY_TOOLBAR_BUTTON_ACTIVE_TEXT_COLOR}, the same red as the theme. */
+    public static final int DEFAULT_IVALUE_TOOLBAR_BUTTON_ACTIVE_TEXT_COLOR = 0xFFEF5350;
+
+    /**
+     * Key for the extra keys button background color in colors.properties. Mirrors the theme
+     * attribute {@code extraKeysButtonBackgroundColor}, but defaults to transparent so that the
+     * keys show the toolbar color through them.
+     */
+    public static final String KEY_TOOLBAR_BUTTON_BACKGROUND = "toolbar-button-background";
+    /** Default for {@link #KEY_TOOLBAR_BUTTON_BACKGROUND}, fully transparent. */
+    public static final int DEFAULT_IVALUE_TOOLBAR_BUTTON_BACKGROUND = 0x00000000;
+
+    /**
+     * Key for the extra keys button background color while a special button like CTRL is latched
+     * or while the long press popup is shown, in colors.properties. Mirrors the theme attribute
+     * {@code extraKeysButtonActiveBackgroundColor}. When left unset, a translucent black or white
+     * is picked based on the brightness of {@link #KEY_TOOLBAR_BACKGROUND} so that it stays
+     * readable on any toolbar color.
+     */
+    public static final String KEY_TOOLBAR_BUTTON_ACTIVE_BACKGROUND = "toolbar-button-active-background";
+
+    /**
      * The connection to the {@link TermuxService}. Requested in {@link #onCreate(Bundle)} with a call to
      * {@link #bindService(Intent, ServiceConnection, int)}, and obtained and stored in
      * {@link #onServiceConnected(ComponentName, IBinder)}.
@@ -196,6 +230,12 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      * {@code toolbar-background} key of colors.properties, defaults to opaque black.
      */
     private int mToolbarBackgroundColor = DEFAULT_IVALUE_TOOLBAR_BACKGROUND;
+
+    private int mToolbarButtonTextColor = DEFAULT_IVALUE_TOOLBAR_BUTTON_TEXT_COLOR;
+    private int mToolbarButtonActiveTextColor = DEFAULT_IVALUE_TOOLBAR_BUTTON_ACTIVE_TEXT_COLOR;
+    private int mToolbarButtonBackground = DEFAULT_IVALUE_TOOLBAR_BUTTON_BACKGROUND;
+    /** The color set in colors.properties, or {@code 0} to derive one from the toolbar color. */
+    private int mToolbarButtonActiveBackground;
 
 
     private static final int CONTEXT_MENU_SELECT_URL_ID = 0;
@@ -522,6 +562,66 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
     public void setToolbarBackgroundColor(int toolbarBackgroundColor) {
         mToolbarBackgroundColor = toolbarBackgroundColor;
         updateTerminalToolbarBackground();
+        // The automatic active button color is derived from the toolbar color.
+        applyToolbarButtonColors();
+    }
+
+    /**
+     * Set the extra keys button colors coming from colors.properties and push them to the extra keys
+     * view. Any argument that is {@code null} falls back to its default; a {@code null}
+     * {@code buttonActiveBackground} derives a translucent black or white from the toolbar
+     * background color so that it stays readable whatever the toolbar color is.
+     *
+     * @param buttonTextColor The button text color as a 0xAARRGGBB int, may be {@code null}.
+     * @param buttonActiveTextColor The latched special button text color, may be {@code null}.
+     * @param buttonBackground The button background color, may be {@code null}.
+     * @param buttonActiveBackground The latched/popup button background color, may be {@code null}.
+     */
+    public void setToolbarButtonColors(@Nullable Integer buttonTextColor, @Nullable Integer buttonActiveTextColor,
+                                       @Nullable Integer buttonBackground, @Nullable Integer buttonActiveBackground) {
+        mToolbarButtonTextColor = buttonTextColor != null ? buttonTextColor : DEFAULT_IVALUE_TOOLBAR_BUTTON_TEXT_COLOR;
+        mToolbarButtonActiveTextColor = buttonActiveTextColor != null ? buttonActiveTextColor : DEFAULT_IVALUE_TOOLBAR_BUTTON_ACTIVE_TEXT_COLOR;
+        mToolbarButtonBackground = buttonBackground != null ? buttonBackground : DEFAULT_IVALUE_TOOLBAR_BUTTON_BACKGROUND;
+        mToolbarButtonActiveBackground = buttonActiveBackground != null ? buttonActiveBackground : 0;
+
+        applyToolbarButtonColors();
+    }
+
+    /**
+     * Push the extra keys button colors to the extra keys view, if it has been created already. It
+     * is only created once the terminal toolbar view pager inflates its first page, so this is a
+     * no-op before that happens.
+     */
+    private void applyToolbarButtonColors() {
+        if (mExtraKeysView == null) return;
+
+        mExtraKeysView.setButtonColors(mToolbarButtonTextColor, mToolbarButtonActiveTextColor,
+            mToolbarButtonBackground, getToolbarButtonActiveBackgroundColor());
+    }
+
+    /**
+     * Get the color to use behind a latched special button or the long press popup, either the one
+     * set in colors.properties or, when unset, a translucent overlay picked from the toolbar
+     * background brightness.
+     *
+     * @return Returns the color as a 0xAARRGGBB int.
+     */
+    private int getToolbarButtonActiveBackgroundColor() {
+        if (mToolbarButtonActiveBackground != 0) return mToolbarButtonActiveBackground;
+
+        return getAdaptiveOverlayColor(mToolbarBackgroundColor);
+    }
+
+    /**
+     * Pick a translucent overlay that stays readable on the given background color, by overlaying
+     * black on light backgrounds and white on dark ones.
+     *
+     * @param backgroundColor The background color as a 0xAARRGGBB int.
+     * @return Returns the overlay color as a 0xAARRGGBB int.
+     */
+    public static int getAdaptiveOverlayColor(int backgroundColor) {
+        boolean isLightBackground = TerminalColors.getPerceivedBrightnessOfColor(backgroundColor) >= 130;
+        return isLightBackground ? 0x33000000 : 0x33FFFFFF;
     }
 
     /**
@@ -1074,6 +1174,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
             if (mExtraKeysView != null) {
                 mExtraKeysView.setButtonTextAllCaps(mProperties.shouldExtraKeysTextBeAllCaps());
+                applyToolbarButtonColors();
                 mExtraKeysView.reload(mTermuxTerminalExtraKeys.getExtraKeysInfo(), mTerminalToolbarDefaultHeight);
             }
 

@@ -503,10 +503,15 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
                 }
             }
 
-            // The toolbar background is not a terminal color, so it has to be taken out before the
+            // The toolbar colors are not terminal colors, so they have to be taken out before the
             // properties are handed over since TerminalColorScheme.updateWith() throws on any key
             // it does not know about, which would break loading the whole color scheme.
             mActivity.setToolbarBackgroundColor(parseToolbarBackgroundColor(props));
+            mActivity.setToolbarButtonColors(
+                removeColorProperty(props, TermuxActivity.KEY_TOOLBAR_BUTTON_TEXT_COLOR),
+                removeColorProperty(props, TermuxActivity.KEY_TOOLBAR_BUTTON_ACTIVE_TEXT_COLOR),
+                removeColorProperty(props, TermuxActivity.KEY_TOOLBAR_BUTTON_BACKGROUND),
+                removeColorProperty(props, TermuxActivity.KEY_TOOLBAR_BUTTON_ACTIVE_BACKGROUND));
 
             TerminalColors.COLOR_SCHEME.updateWith(props);
             TerminalSession session = mActivity.getCurrentSession();
@@ -531,14 +536,29 @@ public class TermuxTerminalSessionActivityClient extends TermuxTerminalSessionCl
      * black if the key is missing or holds an unparsable color.
      */
     private int parseToolbarBackgroundColor(Properties props) {
-        Object value = props.remove(TermuxActivity.KEY_TOOLBAR_BACKGROUND);
-        if (value == null) return TermuxActivity.DEFAULT_IVALUE_TOOLBAR_BACKGROUND;
+        Integer color = removeColorProperty(props, TermuxActivity.KEY_TOOLBAR_BACKGROUND);
+        return color != null ? color : TermuxActivity.DEFAULT_IVALUE_TOOLBAR_BACKGROUND;
+    }
+
+    /**
+     * Take a color out of the given colors.properties and remove the key from them, so that what is
+     * left can be parsed by the terminal color scheme.
+     *
+     * @param props The properties loaded from colors.properties, modified in place.
+     * @param key The key to take the color of.
+     * @return Returns the color as a 0xAARRGGBB int, or {@code null} if the key is missing or holds
+     * an unparsable color, in which case the caller should fall back to a default.
+     */
+    @Nullable
+    private Integer removeColorProperty(Properties props, String key) {
+        Object value = props.remove(key);
+        if (value == null) return null;
 
         int color = TerminalColors.parse(value.toString());
         if (color == 0) {
-            Logger.logError(LOG_TAG, "The property \"" + TermuxActivity.KEY_TOOLBAR_BACKGROUND +
-                "\" has invalid color: '" + value + "'. Using default color instead.");
-            return TermuxActivity.DEFAULT_IVALUE_TOOLBAR_BACKGROUND;
+            Logger.logError(LOG_TAG, "The property \"" + key + "\" has invalid color: '" +
+                value + "'. Using default color instead.");
+            return null;
         }
 
         return color;
